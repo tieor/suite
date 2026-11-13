@@ -1,0 +1,1 @@
+var e=`com.obr-suite/trickster`,t=`${e}/data`,n=`${e}/create-prefs`;export{e as n,t as r,n as t};

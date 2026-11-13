@@ -1,0 +1,1 @@
+var e={portalToolName:{zh:`传送门`,en:`Portal`},portalToolHint:{zh:`画圈创建传送门`,en:`Drag to create a portal`},portalUnnamed:{zh:`(未命名)`,en:`(unnamed)`}};export{e as t};

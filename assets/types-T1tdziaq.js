@@ -1,0 +1,1 @@
+var e=[`d4`,`d6`,`d8`,`d10`,`d12`,`d20`,`d100`],t={d4:4,d6:6,d8:8,d10:10,d12:12,d20:20,d100:100},n={d4:.78,d6:.85,d8:.9,d10:.93,d12:.96,d20:1,d100:1.06};function r(e){return Math.floor(Math.random()*t[e])+1}function i(e){if(e in t)return t[e];let n=e.match(/^d(\d+)$/i);return n?parseInt(n[1],10):20}export{i,n,r,e as t};

@@ -1,0 +1,1 @@
+var e=`com.obr-suite/bubbles/settings`;function t(t){let n=t[e],r=Number(n?.playerThreshold);return Number.isFinite(r)&&r>=0&&r<=100?r:25}function n(e,t){if(t<=0)return e;let n=t/100;return n>=1?+(e>0):Math.max(0,Math.min(1,Math.ceil(e/n)*n))}export{n,t as r,e as t};

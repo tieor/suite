@@ -1,0 +1,1 @@
+var e=`com.obr-suite/resources/edit-session`,t=t=>`${e}:${t}`;function n(e){try{localStorage.setItem(t(e),e)}catch{}}function r(e){try{return localStorage.getItem(t(e))===e}catch{return!1}}function i(e){try{localStorage.removeItem(t(e))}catch{}}export{r as n,n as r,i as t};

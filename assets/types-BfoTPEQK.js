@@ -1,0 +1,1 @@
+var e=`com.obr-suite/resources`,t=`${e}/data`;export{t as n,e as t};

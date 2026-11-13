@@ -1,0 +1,1 @@
+var e=/\/suite-dev\//.test(`/suite/`),t=`full-suite-workbench/v1`;export{t as n,e as t};

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Group Saves</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:rgba(31,34,48,0.95);
+  --bg-soft:rgba(38,42,58,0.95);
+  --border:rgba(255,255,255,0.12);
+  --border-strong:rgba(255,255,255,0.20);
+  --text:#e6e8ee;
+  --text-dim:#9aa0b3;
+  --accent:#5dade2;
+  --accent-on:#7ec8f0;
+  --green:#7be0a0;
+}
+html,body{
+  height:100%;width:100%;overflow:hidden;
+  background:transparent;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+  color:var(--text);font-size:12px;
+}
+/* Bumped border-radius from 10px → 16px to match the suite's rounder
+   popover hosts (cluster uses 14px; OBR's wrapper sometimes clips at
+   ~12-14px). Inset .box by 1px so the OBR host's own clipping doesn't
+   eat our top/bottom edges when the host adds its own border. */
+.box{
+  position:absolute;inset:1px;
+  background:var(--bg);
+  border:1px solid var(--border-strong);
+  border-radius:16px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.55);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+
+.head{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 14px 6px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.head .ttl{
+  font-size:11px;font-weight:700;
+  letter-spacing:0.6px;text-transform:uppercase;
+  color:var(--text);
+}
+.head .count{
+  font-size:10.5px;color:var(--text-dim);
+  font-weight:600;
+  margin-left:2px;
+}
+.head .hint{
+  margin-left:auto;
+  font-size:10.5px;color:var(--text-dim);font-style:italic;
+}
+
+/* Row padding bumped to 10px so the corner buttons sit clear of the
+   16px box-arc — without this, the bottom-corner buttons get a
+   visible bite taken out where the box's rounded edge clips them. */
+.row{
+  flex:1;
+  display:grid;
+  grid-template-columns:repeat(6, 1fr);
+  gap:5px;
+  padding:8px 10px 10px;
+}
+.btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;
+  background:var(--bg-soft);
+  border:1px solid var(--border);
+  border-radius:8px;
+  cursor:pointer;
+  font-family:inherit;color:var(--text);
+  padding:5px 4px;
+  transition:background .12s, border-color .12s, transform .06s;
+  user-select:none;
+  /* Disable native browser context menu so our right-click → suite
+     popover handler is the only thing that fires. */
+  -webkit-touch-callout:none;
+}
+.btn:hover{
+  background:rgba(93,173,226,0.18);
+  border-color:rgba(93,173,226,0.45);
+}
+.btn:active{transform:scale(0.96)}
+.btn .ab{
+  font-size:13px;font-weight:800;
+  color:var(--accent-on);
+  letter-spacing:0.4px;
+  line-height:1.15;
+}
+.btn .lbl{
+  font-size:9px;color:var(--text-dim);
+  font-weight:600;
+  letter-spacing:0.3px;
+}
+
+/* Brief flash when a save fires — visual confirmation that the click
+   landed (the actual dice play out on canvas, but the popover stays
+   open and we want a tiny ack here too). */
+.btn.flash{
+  background:rgba(46,204,113,0.30);
+  border-color:rgba(46,204,113,0.65);
+}
+/* Initiative-variant buttons get adv-green / dis-red accents so they
+   read as "advantage" / "disadvantage" without needing extra
+   wording. Normal stays neutral. */
+.btn.init-btn.adv .ab{color:#7be0a0}
+.btn.init-btn.adv:hover{
+  background:rgba(46,204,113,0.16);
+  border-color:rgba(46,204,113,0.45);
+}
+.btn.init-btn.dis .ab{color:#ff8b7a}
+.btn.init-btn.dis:hover{
+  background:rgba(231,76,60,0.16);
+  border-color:rgba(231,76,60,0.45);
+}
+
+/* HP edit row — sits below the save row in `save` mode. Input takes
+   the user's number; minus/plus/set apply it to every selected
+   monster's bubbles HP metadata via a single bg broadcast. */
+.row-hp{
+  display:flex;align-items:stretch;gap:5px;
+  padding:0 10px 10px;
+  flex-shrink:0;
+}
+.row-hp .hp-field{
+  flex:0 0 74px;
+  background:rgba(0,0,0,0.32);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text);
+  font-family:inherit;font-size:11px;font-weight:700;
+  outline:none;
+  padding:0 5px;
+}
+.row-hp .hp-input{
+  flex:0 0 56px;
+  background:rgba(0,0,0,0.32);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text);
+  font-family:inherit;font-size:13px;font-weight:700;
+  text-align:center;
+  outline:none;
+  padding:0;
+}
+.row-hp .hp-input::-webkit-inner-spin-button,
+.row-hp .hp-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.row-hp .hp-btn{
+  flex:1 1 0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg-soft);
+  border:1px solid var(--border);
+  border-radius:8px;
+  cursor:pointer;
+  font-family:inherit;color:var(--text);
+  font-size:12px;font-weight:700;
+  transition:background .12s, border-color .12s, transform .06s;
+  user-select:none;
+}
+.row-hp .hp-btn:active{transform:scale(0.96)}
+.row-hp .hp-btn.dmg{color:#ff8b7a}
+.row-hp .hp-btn.dmg:hover{background:rgba(231,76,60,0.16);border-color:rgba(231,76,60,0.45)}
+.row-hp .hp-btn.heal{color:#7be0a0}
+.row-hp .hp-btn.heal:hover{background:rgba(46,204,113,0.16);border-color:rgba(46,204,113,0.45)}
+.row-hp .hp-btn.set{color:#9ad9ff}
+.row-hp .hp-btn.set:hover{background:rgba(93,173,226,0.18);border-color:rgba(93,173,226,0.45)}
+.row-hp .hp-btn.flash{
+  background:rgba(46,204,113,0.30);
+  border-color:rgba(46,204,113,0.65);
+}
+</style>
+  <script type="module" crossorigin src="/suite/assets/bestiary-group-saves-wL0oS7bH.js"></script>
+  <link rel="modulepreload" crossorigin href="/suite/assets/modulepreload-polyfill-BZX172cq.js">
+  <link rel="modulepreload" crossorigin href="/suite/assets/rolldown-runtime-DQNNOcW4.js">
+  <link rel="modulepreload" crossorigin href="/suite/assets/vendor-Bz4s8oZC.js">
+</head>
+<body>
+<div class="box">
+  <div class="head">
+    <span class="ttl" id="ttl">群体豁免</span>
+    <span class="count" id="count">…</span>
+    <span class="hint" id="hint">左键投掷 · 右键更多</span>
+  </div>
+  <!-- "save" mode: 6 ability save buttons (visible by default) -->
+  <div class="row" id="rowSave">
+    <button class="btn" data-ab="str"><span class="ab" data-l="abStr">力量</span><span class="lbl">STR</span></button>
+    <button class="btn" data-ab="dex"><span class="ab" data-l="abDex">敏捷</span><span class="lbl">DEX</span></button>
+    <button class="btn" data-ab="con"><span class="ab" data-l="abCon">体质</span><span class="lbl">CON</span></button>
+    <button class="btn" data-ab="int"><span class="ab" data-l="abInt">智力</span><span class="lbl">INT</span></button>
+    <button class="btn" data-ab="wis"><span class="ab" data-l="abWis">感知</span><span class="lbl">WIS</span></button>
+    <button class="btn" data-ab="cha"><span class="ab" data-l="abCha">魅力</span><span class="lbl">CHA</span></button>
+  </div>
+
+  <!-- "save" mode HP-edit row — type a number, then click −HP / +HP /
+       =HP to subtract / add / set the value on every selected
+       bestiary-bound monster's bubbles HP. Hidden in initiative
+       mode (combat prep) since the GM is rolling, not editing. -->
+  <div class="row-hp" id="rowHp">
+    <select class="hp-field" id="hpField">
+      <option value="health">HP</option>
+      <option value="max health">Max HP</option>
+      <option value="armor class">AC</option>
+    </select>
+    <input class="hp-input" id="hpInput" type="number" min="0" max="9999" step="1" placeholder="10" />
+    <button class="hp-btn dmg" data-hp="dmg" title="减少选中属性 / Decrease selected stat"><span data-l="hpDmg">−</span></button>
+    <button class="hp-btn heal" data-hp="heal" title="增加选中属性 / Increase selected stat"><span data-l="hpHeal">+</span></button>
+    <button class="hp-btn set" data-hp="set" title="设为选中属性 / Set selected stat"><span data-l="hpSet">=</span></button>
+  </div>
+
+  <!-- "initiative" mode: 3 variant buttons (hidden by default; the bg
+       module flips display based on combat state). 优势/普通/劣势 — when
+       combat is being prepared, the GM's natural multi-select gesture
+       is to roll initiative for the chosen monsters, so we present
+       the relevant action front-and-centre. -->
+  <div class="row row-init" id="rowInit" style="display:none;grid-template-columns:repeat(3, 1fr)">
+    <button class="btn init-btn adv" data-iv="adv"><span class="ab" data-l="ivAdv">优势</span><span class="lbl">ADV</span></button>
+    <button class="btn init-btn normal" data-iv="normal"><span class="ab" data-l="ivNormal">普通</span><span class="lbl">NORMAL</span></button>
+    <button class="btn init-btn dis" data-iv="dis"><span class="ab" data-l="ivDis">劣势</span><span class="lbl">DIS</span></button>
+  </div>
+</div>
+</body>
+</html>

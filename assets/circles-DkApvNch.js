@@ -1,0 +1,1 @@
+import"./vendor-Bz4s8oZC.js";import{n as e}from"./types-BZPWLDt6.js";`${e}`,`${e}`;var t=6;function n(e,n){let r=e.grid?.dpi??n,i=n/Math.max(1,r),a=(e.image?.width??r)*i*Math.abs(e.scale?.x??1),o=(e.image?.height??r)*i*Math.abs(e.scale?.y??1);return{cx:e.position.x,cy:e.position.y,radius:Math.max(a,o)/2+t}}export{n as t};

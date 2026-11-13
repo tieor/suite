@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>群体豁免结算</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;transition:none!important;animation:none!important}
+:root{
+  --bg:rgba(20,24,38,0.97);
+  --bg-strong:#2c3044;
+  --bg-card:#262a3a;
+  --border:rgba(255,255,255,0.10);
+  --border-strong:rgba(255,255,255,0.20);
+  --text:#e6e8ee;
+  --text-dim:#9aa0b3;
+  --accent:#5dade2;
+  --good:#7be0a0;
+  --bad:#ff8b7a;
+  --warn:#ffb74d;
+  --gold:#f5a623;
+}
+html,body{
+  height:100%;width:100%;overflow:hidden;background:transparent;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+  color:var(--text);font-size:13px;
+}
+/* Full-screen backdrop — modal lives full-screen so OBR can render
+   the dim layer behind it. The card sits centered. The whole sheet
+   eats pointer events; only the "好了" button below dismisses. */
+.shell{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  background:rgba(0,0,0,0.45);
+}
+.card{
+  width:min(100%, 460px);
+  max-height:calc(100vh - 48px);
+  display:flex;flex-direction:column;
+  background:var(--bg);
+  border:1px solid var(--border-strong);
+  border-radius:12px;
+  box-shadow:0 14px 38px rgba(0,0,0,0.6);
+  overflow:hidden;
+}
+.head{
+  padding:14px 16px 10px;
+  border-bottom:1px solid var(--border);
+  display:flex;flex-direction:column;gap:4px;
+}
+.head .ttl{
+  font-size:14px;font-weight:800;color:var(--gold);
+  letter-spacing:0.4px;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.head .sub{font-size:11px;color:var(--text-dim);line-height:1.55}
+.body{
+  padding:12px 16px;
+  display:flex;flex-direction:column;gap:10px;
+  overflow-y:auto;
+}
+.body::-webkit-scrollbar{width:4px}
+.body::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:2px}
+
+/* Per-token result chips — flow-wrap inline rather than one-per-row.
+   Each chip shows "<name> <total>"; the DC threshold below tints
+   the total span pass/fail when filled. */
+.results{
+  display:flex;flex-wrap:wrap;
+  gap:6px;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:rgba(0,0,0,0.18);
+}
+.results .empty{
+  width:100%;text-align:center;
+  font-size:12px;color:var(--text-dim);padding:4px 0;
+}
+.results .chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 8px;
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  font-size:11.5px;color:var(--text);
+  max-width:100%;
+}
+.results .chip .name{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:140px;
+}
+.results .chip .total{
+  font-family:ui-monospace,Consolas,monospace;
+  font-weight:800;font-size:12px;
+  font-variant-numeric:tabular-nums;
+  padding:0 6px;border-radius:4px;
+  background:rgba(255,255,255,0.06);
+}
+.results .chip.fail .total{background:rgba(231,76,60,0.22);color:var(--bad)}
+.results .chip.pass .total{background:rgba(46,204,113,0.22);color:var(--good)}
+
+/* Single-line input row: DC + 字段下拉 + 数值, all inline. */
+.input-row{
+  display:flex;align-items:stretch;gap:6px;
+  flex-wrap:nowrap;
+}
+.input-row .grp{
+  display:flex;align-items:center;gap:4px;
+  flex-shrink:0;
+}
+.input-row .grp.flex{flex:1;min-width:0}
+.input-row .lbl{
+  font-size:10.5px;color:var(--text-dim);
+  letter-spacing:0.3px;
+  white-space:nowrap;
+}
+.input-row input,.input-row select{
+  height:32px;
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:6px;
+  color:var(--text);
+  padding:0 8px;
+  font-family:ui-monospace,Consolas,monospace;
+  font-size:13.5px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  outline:none;
+  min-width:0;
+}
+.input-row input{width:60px}
+.input-row .grp.flex input{width:100%}
+.input-row input:focus,.input-row select:focus{border-color:var(--accent)}
+.input-row select{
+  font-family:inherit;font-size:12px;font-weight:600;
+  cursor:pointer;
+  padding-right:18px;
+}
+
+.actions{
+  display:grid;
+  grid-template-columns:3fr 1fr 1fr;
+  gap:6px;
+}
+.btn-act{
+  height:36px;
+  background:var(--bg-strong);
+  border:1px solid var(--border-strong);
+  color:var(--text);
+  border-radius:6px;
+  font-size:12.5px;font-weight:800;
+  font-family:inherit;cursor:pointer;
+  transition:background .12s, color .12s, border-color .12s;
+  padding:0 8px;
+  line-height:1.1;
+}
+.btn-act.dmg{color:var(--bad);border-color:rgba(231,76,60,0.40)}
+.btn-act.dmg:hover{background:rgba(231,76,60,0.18);border-color:rgba(231,76,60,0.65)}
+.btn-act.heal{color:var(--good);border-color:rgba(46,204,113,0.40)}
+.btn-act.heal:hover{background:rgba(46,204,113,0.18);border-color:rgba(46,204,113,0.65)}
+.btn-act.set{color:var(--accent);border-color:rgba(93,173,226,0.40)}
+.btn-act.set:hover{background:rgba(93,173,226,0.18);border-color:rgba(93,173,226,0.65)}
+
+.foot{
+  padding:10px 16px 14px;
+  border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:8px;
+}
+.applied-msg{
+  font-size:11px;color:var(--text-dim);
+  min-height:14px;line-height:1.4;text-align:center;
+}
+.applied-msg.flash{color:var(--good);font-weight:600}
+.btn-ok{
+  height:38px;width:100%;
+  background:var(--gold);
+  border:none;
+  color:#1a1a1a;
+  border-radius:6px;
+  font-size:13.5px;font-weight:800;letter-spacing:0.5px;
+  font-family:inherit;cursor:pointer;
+  transition:filter .12s;
+}
+.btn-ok:hover{filter:brightness(1.10)}
+
+.hint{
+  font-size:10.5px;color:var(--text-dim);
+  line-height:1.6;
+}
+.hint code{
+  font-family:ui-monospace,Consolas,monospace;
+  background:rgba(255,255,255,0.06);
+  padding:0 4px;border-radius:3px;
+  color:var(--text);
+}
+</style>
+  <script type="module" crossorigin src="/suite/assets/bestiary-group-resolve-D3zi2QQP.js"></script>
+  <link rel="modulepreload" crossorigin href="/suite/assets/modulepreload-polyfill-BZX172cq.js">
+  <link rel="modulepreload" crossorigin href="/suite/assets/rolldown-runtime-DQNNOcW4.js">
+  <link rel="modulepreload" crossorigin href="/suite/assets/vendor-Bz4s8oZC.js">
+</head>
+<body>
+<div class="shell">
+  <div class="card">
+    <div class="head">
+      <div class="ttl">⚖ 群体豁免结算 <span id="abilityLbl" style="color:var(--text-dim);font-weight:600;font-size:12px"></span></div>
+    </div>
+
+    <div class="body">
+      <div class="results" id="results"><!-- per-token chips injected by JS --></div>
+
+      <div class="input-row">
+        <div class="grp">
+          <span class="lbl">本次豁免DC</span>
+          <input id="dcInput" type="number" min="0" max="40" step="1" placeholder="14">
+        </div>
+        <div class="grp">
+          <select id="fieldSelect" title="选择要修改的字段">
+            <option value="health">HP</option>
+            <option value="max health">Max HP</option>
+            <option value="armor class">AC</option>
+          </select>
+        </div>
+        <div class="grp flex">
+          <input id="valueInput" type="number" min="0" max="9999" step="1" placeholder="数值">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-act dmg"  data-mode="dmg"  type="button">−（失败全额 / 成功减半向下取整）</button>
+        <button class="btn-act heal" data-mode="heal" type="button">+</button>
+        <button class="btn-act set"  data-mode="set"  type="button">=</button>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="applied-msg" id="appliedMsg"></div>
+      <button class="btn-ok" id="btnOk" type="button">好了</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
